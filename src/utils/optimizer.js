@@ -5,7 +5,7 @@ export const VALID_ORIGINS = new Set([
     "Piltover", "Shadow Isles", "Shurima", "Targon", "Void", "Yordle", "Zaun"
 ]);
 
-export function findTopComps(data, teamSize, ownedEmblems = {}) {
+export function findTopComps(data, teamSize, ownedEmblems = {}, constraints = {}) {
     const { champions, traits } = data;
 
     // 1. Find Ryze
@@ -25,7 +25,7 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
     for (let i = 0; i < ITERATIONS; i++) {
         // Random Start
         let currentTeam = [ryze, ...getRandomSubarray(pool, teamSize - 1)];
-        let currentScore = scoreTeam(currentTeam, traits, ownedEmblems);
+        let currentScore = scoreTeam(currentTeam, traits, ownedEmblems, constraints);
 
         // Hill Climb
         for (let s = 0; s < STEPS; s++) {
@@ -37,14 +37,16 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
             const newTeam = [...currentTeam];
             newTeam[swapIndex] = newUnit;
 
-            const newScore = scoreTeam(newTeam, traits, ownedEmblems);
+            const newScore = scoreTeam(newTeam, traits, ownedEmblems, constraints);
             if (newScore > currentScore) {
                 currentTeam = newTeam;
                 currentScore = newScore;
             }
         }
 
-        bestComps.push({ team: currentTeam, score: currentScore, details: getTraitDetails(currentTeam, traits, ownedEmblems) });
+        if (currentScore > -1000000) { // Only keep valid teams
+            bestComps.push({ team: currentTeam, score: currentScore, details: getTraitDetails(currentTeam, traits, ownedEmblems) });
+        }
     }
 
     // 3. Emblem Focus Pass (Logic Restored)
@@ -57,7 +59,7 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
 
         for (let i = 0; i < ITERATIONS; i++) {
             let currentTeam = [ryze, ...getRandomSubarray(pool, teamSize - 1)];
-            let currentScore = scoreEmblemComp(currentTeam, traits, ownedEmblems);
+            let currentScore = scoreEmblemComp(currentTeam, traits, ownedEmblems, constraints);
 
             for (let s = 0; s < STEPS; s++) {
                 const swapIndex = Math.floor(Math.random() * (teamSize - 1)) + 1;
@@ -66,7 +68,7 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
 
                 const newTeam = [...currentTeam];
                 newTeam[swapIndex] = newUnit;
-                const newScore = scoreEmblemComp(newTeam, traits, ownedEmblems);
+                const newScore = scoreEmblemComp(newTeam, traits, ownedEmblems, constraints);
 
                 if (newScore > currentScore) {
                     currentTeam = newTeam;
@@ -74,7 +76,7 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
                 }
             }
 
-            if (currentScore > bestEmblemScore) {
+            if (currentScore > bestEmblemScore && currentScore > -1000000) {
                 bestEmblemScore = currentScore;
                 emblemComp = {
                     team: currentTeam,
@@ -112,12 +114,28 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
     return finalResults;
 }
 
-function scoreTeam(team, allTraits, ownedEmblems) {
-    const activeData = getTraitDetails(team, allTraits, ownedEmblems);
-    return (activeData.activeOrigins * 10000) + (activeData.activeCount * 100) + (activeData.totalCost * 0.1);
+function checkConstraints(details, constraints) {
+    if (!constraints) return 0;
+
+    for (const [trait, type] of Object.entries(constraints)) {
+        const isActive = details.activatedTraits.some(t => t.name === trait);
+
+        if (type === 'must' && !isActive) return -9999999;
+        if (type === 'block' && isActive) return -9999999;
+    }
+    return 0;
 }
 
-function scoreEmblemComp(team, allTraits, ownedEmblems) {
+function scoreTeam(team, allTraits, ownedEmblems, constraints) {
+    const activeData = getTraitDetails(team, allTraits, ownedEmblems);
+    let score = (activeData.activeOrigins * 10000) + (activeData.activeCount * 100) + (activeData.totalCost * 0.1);
+
+    score += checkConstraints(activeData, constraints);
+
+    return score;
+}
+
+function scoreEmblemComp(team, allTraits, ownedEmblems, constraints) {
     const details = getTraitDetails(team, allTraits, ownedEmblems);
     let emblemScore = 0;
 
@@ -131,7 +149,10 @@ function scoreEmblemComp(team, allTraits, ownedEmblems) {
         }
     }
 
-    return emblemScore + (details.activeOrigins * 1000) + (details.activeCount * 10);
+    let final = emblemScore + (details.activeOrigins * 1000) + (details.activeCount * 10);
+    final += checkConstraints(details, constraints);
+
+    return final;
 }
 
 function getTraitDetails(team, allTraits, ownedEmblems) {

@@ -15,37 +15,58 @@ export function TeamDisplay({ comps, loading }) {
                         </div>
                     )}
                     <div className="flex justify-between items-center mb-4">
-                        <h3 className={`text-xl font-bold ${comp.isEmblemComp ? 'text-white' : 'text-yellow-400'}`}>
-                            {comp.isEmblemComp ? 'Bonus Option' : `Option ${idx + 1}`}
-                        </h3>
-                        <div className="flex gap-4">
-                            <span className="bg-purple-900 px-3 py-1 rounded text-sm font-bold border border-purple-700">Origins: {comp.details.activeOrigins}</span>
-                            <span className="bg-blue-900 px-3 py-1 rounded text-sm border border-blue-700">Traits: {comp.details.activeCount}</span>
-                            <span className="bg-green-900 px-3 py-1 rounded text-sm border border-green-700">Score: {Math.round(comp.score)}</span>
+                        <div className="flex items-center gap-4">
+                            <h3 className={`text-xl font-bold ${comp.isEmblemComp ? 'text-white' : 'text-yellow-400'}`}>
+                                {comp.isEmblemComp ? 'Bonus Option' : `Option ${idx + 1}`}
+                            </h3>
+                            <div className="flex gap-2">
+                                <span className="bg-purple-900 px-3 py-1 rounded text-sm font-bold border border-purple-700">Origins: {comp.details.activeOrigins}</span>
+                                <span className="bg-blue-900 px-3 py-1 rounded text-sm border border-blue-700">Traits: {comp.details.activeCount}</span>
+                                <span className="bg-green-900 px-3 py-1 rounded text-sm border border-green-700">Score: {Math.round(comp.score)}</span>
+                            </div>
                         </div>
+                        <button
+                            onClick={() => {
+                                const code = JSON.stringify({ units: comp.team.map(u => u.apiName) });
+                                navigator.clipboard.writeText(code);
+                                alert("Team code copied to clipboard!");
+                            }}
+                            className="bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded text-xs font-bold text-gray-300 transition border border-gray-600"
+                            title="Copy to Clipboard"
+                        >
+                            Copy Team
+                        </button>
                     </div>
 
                     {/* Units Grid */}
                     <div className="grid grid-cols-5 md:grid-cols-9 gap-2 mb-6">
-                        {comp.team.map((unit, i) => (
-                            <div key={i} className="flex flex-col items-center">
-                                <div className="w-16 h-16 bg-gray-600 rounded-full overflow-hidden border-2 border-indigo-500 relative">
-                                    {/* Use simple name fallback or attempt icon URL */}
-                                    {/* URL: https://raw.communitydragon.org/latest/game/ + unit.icon (needs correction usually) */}
-                                    {/* unit.icon is usually lowercased assets... */}
-                                    <img
-                                        src={getIconUrl(unit.icon)}
-                                        alt={unit.name}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => { e.target.style.display = 'none' }}
-                                    />
-                                    <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white bg-black/50 opacity-0 hover:opacity-100 transition">
-                                        {unit.name}
+                        {[...comp.team].sort((a, b) => (a.cost || 0) - (b.cost || 0)).map((unit, i) => {
+                            let borderColor = "border-gray-500";
+                            if (unit.cost === 2) borderColor = "border-green-500";
+                            if (unit.cost === 3) borderColor = "border-blue-500";
+                            if (unit.cost === 4) borderColor = "border-purple-500";
+                            if (unit.cost === 5) borderColor = "border-yellow-400";
+
+                            return (
+                                <div key={i} className="flex flex-col items-center">
+                                    <div className={`w-16 h-16 bg-gray-600 rounded-full overflow-hidden border-2 ${borderColor} relative shadow-md`}>
+                                        {/* Use simple name fallback or attempt icon URL */}
+                                        {/* URL: https://raw.communitydragon.org/latest/game/ + unit.icon (needs correction usually) */}
+                                        {/* unit.icon is usually lowercased assets... */}
+                                        <img
+                                            src={getIconUrl(unit.icon)}
+                                            alt={unit.name}
+                                            className="w-full h-full object-cover"
+                                            onError={(e) => { e.target.style.display = 'none' }}
+                                        />
+                                        <div className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white bg-black/50 opacity-0 hover:opacity-100 transition">
+                                            {unit.name}
+                                        </div>
                                     </div>
+                                    <span className="text-xs mt-1 text-center truncate w-full text-gray-300">{unit.name}</span>
                                 </div>
-                                <span className="text-xs mt-1 text-center truncate w-full">{unit.name}</span>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     {/* Active Traits */}

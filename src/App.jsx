@@ -11,6 +11,7 @@ function App() {
   const [results, setResults] = useState([])
   const [calculating, setCalculating] = useState(false)
   const [emblems, setEmblems] = useState({})
+  const [constraints, setConstraints] = useState({}) // { Trait: 'must' | 'block' }
   const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
@@ -24,7 +25,7 @@ function App() {
     if (!data) return;
     setCalculating(true);
     setTimeout(() => {
-      const topTeams = findTopComps(data, teamSize, emblems);
+      const topTeams = findTopComps(data, teamSize, emblems, constraints);
       setResults(topTeams);
       setCalculating(false);
     }, 100);
@@ -38,6 +39,27 @@ function App() {
       else next[trait] = newVal;
       return next;
     });
+  };
+
+  const toggleConstraint = (trait) => {
+    setConstraints(prev => {
+      const next = { ...prev };
+      const current = next[trait];
+
+      if (!current) next[trait] = 'must';
+      else if (current === 'must') next[trait] = 'block';
+      else delete next[trait];
+
+      return next;
+    });
+  };
+
+  // Helper for constraint Icon
+  const getConstraintIcon = (trait) => {
+    const status = constraints[trait];
+    if (status === 'must') return <span className="text-green-400 font-bold ml-2 text-xs">[MUST]</span>;
+    if (status === 'block') return <span className="text-red-400 font-bold ml-2 text-xs">[NO]</span>;
+    return <span className="text-gray-600 ml-2 text-xs opacity-0 group-hover:opacity-50 transition">[?]</span>;
   };
 
   if (loading) return <div className="min-h-screen grid place-items-center text-2xl font-mono">Loading Data...</div>
@@ -81,14 +103,31 @@ function App() {
               placeholder="Search traits..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 mb-4 text-sm focus:outline-none focus:border-indigo-500 transition"
+              className="w-full bg-gray-900 border border-gray-600 rounded px-3 py-2 mb-2 text-sm focus:outline-none focus:border-indigo-500 transition"
             />
+
+            <button
+              onClick={() => { setEmblems({}); setConstraints({}); }}
+              className="mb-4 text-xs text-red-400 hover:text-red-300 underline self-end"
+            >
+              Clear All
+            </button>
 
             <div className="flex-1 overflow-y-auto space-y-2 pr-2 custom-scrollbar">
               {filteredTraits.map(trait => (
                 <div key={trait} className="flex justify-between items-center text-sm group">
-                  <span className="truncate w-32 text-gray-300 group-hover:text-white transition">{trait}</span>
-                  <div className="flex bg-gray-900 rounded border border-gray-700">
+                  <div
+                    className="flex items-center cursor-pointer select-none"
+                    onClick={() => toggleConstraint(trait)}
+                    title="Click to toggle: Must Have -> Must Not Have -> Neutral"
+                  >
+                    <span className={`truncate w-24 transition ${constraints[trait] === 'must' ? 'text-green-400 font-bold' : constraints[trait] === 'block' ? 'text-red-400 line-through' : 'text-gray-300 group-hover:text-white'}`}>
+                      {trait}
+                    </span>
+                    {getConstraintIcon(trait)}
+                  </div>
+
+                  <div className="flex bg-gray-900 rounded border border-gray-700 ml-2">
                     <button onClick={() => updateEmblem(trait, -1)} className="px-2 hover:bg-gray-700 text-gray-500 rounded-l transition">-</button>
                     <span className="w-8 text-center text-indigo-300 font-mono">{emblems[trait] || 0}</span>
                     <button onClick={() => updateEmblem(trait, 1)} className="px-2 hover:bg-gray-700 text-indigo-400 rounded-r transition">+</button>
