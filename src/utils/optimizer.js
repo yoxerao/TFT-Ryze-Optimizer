@@ -19,8 +19,8 @@ export function findTopComps(data, teamSize, ownedEmblems = {}) {
     const COMP_COUNT = 5;
     let bestComps = [];
 
-    const ITERATIONS = 500;
-    const STEPS = 100;
+    const ITERATIONS = 2500;
+    const STEPS = 200;
 
     for (let i = 0; i < ITERATIONS; i++) {
         // Random Start
